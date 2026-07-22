@@ -1,71 +1,89 @@
-# ⚡ SynapseBridge
+# SynapseBridge
 
-**SynapseBridge** es un daemon de comunicación en tiempo real de ultra-baja latencia (IPC / WebSockets / Server-Sent Events) diseñado para transmitir micro-contexto en caliente desde el canvas visual de **ProjectGrapher** hacia cualquier agente de IA (Claude, Gemini, Cursor, Antigravity, CLI) sin sobrecosto de tokens.
+**Zero-Token IPC Daemon** para contexto en tiempo real entre ProjectGrapher y agentes de IA.
 
----
+## Qué es
 
-## 🚀 Características Clave
+SynapseBridge conecta el canvas visual de ProjectGrapher con la memoria de tus agentes de IA mediante comunicación en tiempo real (IPC). Cuando seleccionas un nodo en ProjectGrapher, el agente recibe instantáneamente el micro-contexto sin copiar/pegar archivos.
 
-* **Daemon IPC Zero-Token:** Transmite payloads hiper-compactos en tiempo real cuando el desarrollador interactúa con el grafo o cambia el foco de la interfaz.
-* **Suscripción Dual:**
-  * **Server-Sent Events (SSE):** `http://127.0.0.1:9090/stream/context`
-  * **WebSocket IPC:** `ws://127.0.0.1:9090/ws/live`
-* **Compresión Inteligente de Eventos:** Formatea roles, contratos expuestos, dependencias directas y snippets activos en prompts listos para IA en menos de 5ms.
-* **Integración Directa con ProjectGrapher:** Emite automáticamente eventos cada vez que se selecciona un nodo en la interfaz visual de ProjectGrapher.
+## Arquitectura
 
----
+```
+ProjectGrapher (Browser) → HTTP POST → SynapseBridge Daemon → SSE/WebSocket → Agente IA
+```
 
-## 🛠️ Instalación y Uso
+## Componentes
 
-### 1. Iniciar el Daemon de SynapseBridge
+| Componente | Descripción |
+|------------|-------------|
+| **Daemon** | Servidor WebSocket + SSE en `localhost:9090` |
+| **Micro-Context Generator** | Genera contexto compacto (Zero-Token) |
+| **Agent Subscriber** | Cliente para que los agentes se suscriban |
+| **ProjectGrapher Connector** | Emite eventos al seleccionar nodos |
+
+## Instalación
 
 ```bash
 cd SynapseBridge
 npm install
+npm run build
+```
+
+## Uso
+
+### 1. Iniciar el Daemon
+
+```bash
 npm run dev
 ```
 
-### 2. Iniciar un Suscriptor de Prueba (Cliente de Agente)
+El daemon escuchará en:
+- HTTP: `http://127.0.0.1:9090`
+- SSE: `http://127.0.0.1:9090/stream/context`
+- WebSocket: `ws://127.0.0.1:9090/ws/live`
 
-En otra terminal:
+### 2. Conectar un Agente
 
 ```bash
 npm run client
 ```
 
-### 3. Emisión de Eventos HTTP desde la API
+### 3. Usar con ProjectGrapher
 
-```bash
-curl -X POST http://127.0.0.1:9090/api/live/event \
-  -H "Content-Type: application/json" \
-  -d '{
-    "type": "node_focus",
-    "timestamp": 1720000000000,
-    "project": "ERP_Delison",
-    "file": {
-      "path": "src/components/molienda-grid-card.component.ts",
-      "label": "molienda-grid-card.component.ts",
-      "importance": 9,
-      "role": "componente, pantalla u orquestador de interfaz",
-      "exports": ["MoliendaGridCardComponent"]
-    }
-  }'
+Abre ProjectGrapher y selecciona cualquier nodo del grafo. El agente recibirá automáticamente:
+
+```json
+{
+  "headline": "[SYNAPSE-LIVE] Foco en: App.tsx (Componente Principal)",
+  "compactPrompt": "[LIVE FOCUS] El desarrollador/canvas está enfocado en...",
+  "formattedStream": "=== SYNAPSE REAL-TIME CONTEXT STREAM ===..."
+}
 ```
 
----
+## API Endpoints
 
-## 🏗️ Estructura del Proyecto
+| Endpoint | Método | Descripción |
+|----------|--------|-------------|
+| `/health` | GET | Health check del daemon |
+| `/stream/context` | GET | Stream SSE de contexto en vivo |
+| `/ws/live` | WebSocket | Canal WebSocket bidireccional |
+| `/api/live/event` | POST | Recibe eventos de ProjectGrapher |
 
-```
-SynapseBridge/
-├── src/
-│   ├── daemon/
-│   │   └── server.ts          # Servidor Express + WebSocket + SSE Daemon
-│   ├── generator/
-│   │   └── microContext.ts    # Formateador Zero-Token de eventos a prompts
-│   ├── client/
-│   │   └── agentSubscriber.ts # Cliente CLI suscriptor de pruebas
-│   └── index.ts               # Punto de entrada del servidor
-├── package.json
-└── tsconfig.json
-```
+## Eventos Soportados
+
+- `node_focus` - Nodo seleccionado en el canvas
+- `hotspot_select` - Hotspot crítico seleccionado
+- `code_cursor` - Cursor en el editor
+- `diff_change` - Cambio en el diff
+
+## Variables de Entorno
+
+| Variable | Default | Descripción |
+|----------|---------|-------------|
+| `SYNAPSE_PORT` | `9090` | Puerto del daemon |
+| `SYNAPSE_HOST` | `127.0.0.1` | Host del daemon |
+| `SYNAPSE_WS_URL` | `ws://127.0.0.1:9090/ws/live` | URL WebSocket del cliente |
+
+## License
+
+MIT
